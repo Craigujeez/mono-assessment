@@ -1,3 +1,0 @@
-[submodule "api"]
-	path = googleapis
-	url = https://github.com/googleapis/googleapis

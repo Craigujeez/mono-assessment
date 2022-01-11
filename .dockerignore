@@ -1,0 +1,6 @@
+router
+node_modules
+googleapis
+.vscode
+mongodb
+.cache

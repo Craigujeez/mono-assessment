@@ -1,0 +1,267 @@
+#%RAML 1.0
+---
+title: Mono Assessment
+mediaType: application/json
+version: v1
+baseUri: http://example.com/{version}
+protocols: [ HTTP ]
+securedBy: [ bearer_token ]
+securitySchemes: 
+  bearer_token:
+    description: Bearer token to authenticate requests to API
+    type: x-bearer-token
+    describedBy: 
+      headers:
+        Authorization:
+          description: Used to send the bearer token
+          type: string
+          required: true
+          pattern: ^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$
+          example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+types:
+  JWT:
+    type: string
+    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+  Empty:
+    type: object
+    properties:
+  Password:
+    type: string
+    pattern: "(?=^.{8,}$)(?=.*\\d)(?=.*[!@#$%^&*]+)(?![.\\n])(?=.*[A-Z])(?=.*[a-z]).*$"
+    example: P@$$w0R&
+  EmailAddress:
+    type: string
+    minLength: 3
+    maxLength: 320
+    pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    example: email@example.com
+  ObjectID:
+    type: string
+    maxLength: 24
+    minLength: 24
+    pattern: ^[a-fA-F0-9]{24}$
+    example: 61bf4e0e2852d62480c8cacd
+  CreateProfileRequest:
+    type: object
+    properties:
+      name?: string
+      email: EmailAddress
+      password: Password
+    example:
+      name: Nnamdi
+      email: nnamdi@example.com
+      password: P@$$w0R&
+  ProfileDetails:
+    properties: 
+      id: ObjectID
+      created_at: datetime
+      updated_at: datetime
+      name: string
+      email: EmailAddress
+      has_linked_account: boolean
+    example:
+      id: 61bf4e0e2852d62480c8cacd
+      created_at: "2022-01-10T05:47:28.399Z"
+      updated_at: "2022-01-10T05:47:28.399Z"
+      name: Nnamdi
+      email: nnamdi@example.com
+      has_linked_account: false
+  Credentials:
+    type: object
+    properties:
+      email: EmailAddress
+      password: Password
+  ProfileDetailsAndJWT:
+    properties: 
+      profile: ProfileDetails
+      jwt: JWT
+  SortOrder:
+    enum: [ CHRONO_ASC, CHRONO_DSC ]
+    default: CHRONO_ASC
+  LinkAccountRequest:
+    properties:
+      code: string
+    example:
+      code: mono_account_code
+  AccountDetails:
+    properties:
+      id: ObjectID
+      bvn: string
+      date_added: datetime
+      account_id: ObjectID
+      account_name: string
+      account_nuban: string
+      account_user: string
+      bank_name: string
+      reauth_required: boolean
+    example:
+      id: 61bf4e0e2852d62480c8cacd
+      bvn: 4715
+      date_added: "2022-01-10T05:47:28.399Z"
+      account_id: 61bf4e0e2852d62480c8cacd
+      account_name: SAVINGS
+      account_nuban: 12321234563
+      account_user: "Nnamdi Ujah"
+      bank_name: "GTB"
+      reauth_required: false
+  ListLinkedAccountsResponse:
+    properties: 
+      accounts: AccountDetails[]
+    example:
+      accounts: 
+      - 
+        id: 61bf4e0e2852d62480c8cacd
+        bvn: 4715
+        date_added: "2022-01-10T05:47:28.399Z"
+        account_id: 61bf4e0e2852d62480c8cacd
+        account_name: SAVINGS
+        account_nuban: 12321234563
+        account_user: "Nnamdi Ujah"
+        bank_name: "GTB"
+        reauth_required: false
+  TransactionDetails:
+    properties:
+      id: ObjectID
+      created_at: datetime
+      date: datetime
+      currency: string
+      narration: string
+      balance: number
+      account_id: ObjectID
+      credit?: number
+      debit?: number
+    example:
+      id: 61bf4e0e2852d62480c8cacd
+      created_at: "2022-01-10T05:47:28.399Z"
+      date: "2022-01-10T05:47:28.399Z"
+      currency: NGN
+      narration: Airtime
+      balance: 12000
+      account_id: 61bf4e0e2852d62480c8cacd
+      debit: 400000
+  ListAccountTransactionsResponse:
+    properties: 
+      transactions: TransactionDetails[]
+    example:
+      transactions:
+      - 
+        id: 61bf4e0e2852d62480c8cacd
+        created_at: "2022-01-10T05:47:28.399Z"
+        date: "2022-01-10T05:47:28.399Z"
+        currency: NGN
+        narration: Airtime
+        balance: 12000
+        account_id: 61bf4e0e2852d62480c8cacd
+        debit: 400000
+  GetReauthCodeResponse:
+    properties: 
+      code: string
+    example:
+      code: auth_fb8PP3jYA0
+
+traits: 
+  paginated:
+    queryParameters:
+      page:
+        required: false
+        type: integer
+        description: the offset of the list being returned with respect to the [limit]
+        default: 1
+        minimum: 1
+      limit:
+        required: false
+        type: integer
+        description: the maximum number of entries in the list being returned
+        default: 1
+        minimum: 1
+      order:
+        required: false
+        type: SortOrder
+        default: CHRONO_ASC
+
+/auth:
+  /register:
+    post:
+      securedBy: [ null ]
+      displayName: Create Profile
+      body: CreateProfileRequest
+      responses: 
+        200:
+          body: ProfileDetails
+  /signin:
+    post:
+      securedBy: [ null ]
+      displayName: Login
+      body: Credentials
+      responses:
+        200:
+          body: ProfileDetailsAndJWT
+
+/profiles:
+  get:
+    displayName: Get Profile
+    responses:
+      200:
+        body: ProfileDetails
+  delete:
+    displayName: Delete Profile
+    responses:
+      200:
+        body: Empty
+
+/accounts:
+  post:
+    displayName: Link Account
+    body: LinkAccountRequest
+    responses: 
+      200:
+        body: AccountDetails
+  get:
+    is: [ paginated ]
+    displayName: List Linked Accounts
+    responses:
+      200:
+        body: ListLinkedAccountsResponse
+  /{accountID}:
+    uriParameters: 
+      accountID:
+        type: ObjectID
+        description: the id of the account
+    delete:
+      displayName: Unlink Account
+      responses: 
+        200:
+          body: Empty
+    get:
+      displayName: Get Linked Account
+      responses: 
+        200:
+          body: AccountDetails
+    /transactions:
+      get:
+        is: [ paginated ]
+        displayName: List Account Transactions
+        queryParameters:
+          tag:
+            required: false
+            type: boolean
+            description: indicates whether to return only credit or debit transactions
+        responses: 
+          200:
+            body: ListAccountTransactionsResponse
+      /{transactionID}:
+        uriParameters:
+          transactionID:
+            type: ObjectID
+            description: the id of the transaction
+        get:
+          displayName: Get Account Transaction
+          responses: 
+            200:
+              body: TransactionDetails
+    /reauth:
+      get:
+        displayName: Get Reauth Code
+        resopnses:
+          200:
+            body: GetReauthCodeResponse

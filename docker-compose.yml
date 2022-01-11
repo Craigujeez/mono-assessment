@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: mono-assessment:latest
+    container_name: mono-assessment
+    expose:
+      - 55055
+    restart: unless-stopped
+    environment:
+      - DB_URL
+      - APP_PORT
+      - JWT_X
+      - JWT_Y
+      - JWT_D
+      - MONO_KEY
+    links:
+      - mongo
+  sidecar:
+    build:
+      context: ./proxy
+      dockerfile: ./Dockerfile
+      args:
+        - MONO_WEBHOOK_SECRET
+    container_name: mono-assessment-proxy
+    logging:
+      driver: "none"
+    ports:
+      - 55099:55099
+      - 9901:9901
+    restart: unless-stopped
+    links:
+      - app
+    depends_on:
+      - app
+  mongo:
+    image: mongo:5.0
+    volumes:
+      - ./mongodb:/data/db
+    logging:
+      driver: "none"
+    ports:
+      - 27018:27017
+  docs:
+    image: gcr.io/api-console-a6952/app:0.1.0
+    volumes:
+      - ${PWD}/docs:/app/api
+    ports:
+      - 8080:8080
+    environment:
+      - API_PROJECT=api.raml
+      - API_TYPE=RAML 1.0
+      - API_MIME=application/raml

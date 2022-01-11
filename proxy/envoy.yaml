@@ -1,0 +1,131 @@
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 9901 }
+
+static_resources:
+  listeners:
+  - name: reverse-proxy
+    address:
+      socket_address: { address: 0.0.0.0, port_value: 55099 }
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: mono
+          server_name: mono
+          codec_type: AUTO
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: local_service
+              domains: ["*"]
+              routes:
+              - match: { prefix: "/health" }
+                direct_response: { status: 200 }
+              - match:
+                  path: "/v1/webhook"
+                  headers:
+                  - name: ":method"
+                    exact_match: "POST"
+                  - name: "mono-webhook-secret"
+                    exact_match: $MONO_WEBHOOK_SECRET
+                route: { cluster: backend, timeout: { seconds: 300 } }
+              - match:
+                  path: "/v1/webhook"
+                  headers:
+                  - name: ":method"
+                    exact_match: "POST"
+                direct_response: {status: 400, body: {inline_string: "invalid secret key"}}
+              - match: { prefix: "/" }
+                route: { cluster: backend, timeout: { seconds: 300 } }
+              cors:
+                allow_origin_string_match:
+                - prefix: "*"
+                allow_methods: GET, PUT, DELETE, POST, OPTIONS, PATCH
+                allow_headers: keep-alive,user-agent,cache-control,authorization,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout,mono-webhook-secret
+                max_age: "1728000"
+                expose_headers: custom-header-1,grpc-status,grpc-message,x-envoy-upstream-service-time,x-total-count
+          http_filters:
+          - name: envoy.filters.http.cors
+          - name: envoy.filters.http.jwt_authn
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+              providers:
+                mono:
+                  issuer: "eseosala:mono"
+                  audiences:
+                  - "mono:user"
+                  local_jwks:
+                    inline_string: |
+                      {"keys":[{
+                          "kty": "EC",
+                          "d": "S1fBo8cI4EgSFZYG1EAgxHaKZHmhrnIc6cR2HOBpl9c",
+                          "use": "sig",
+                          "crv": "P-256",
+                          "kid": "qmlQBc5oBZ29mldczfQyIAtJqPo1s3WZNuIOOI9BArk",
+                          "x": "USbbEzTvufX8GdiZ5EGNSMfPyiNO3tmm1fZo760BXlo",
+                          "y": "X9Y6IqF189K-yLMYg2r73_0txArC3f36gk6YjEVYCLg",
+                          "alg": "ES256"
+                      }]}
+                  from_headers:
+                  - name: authorization
+                    value_prefix: "Bearer "
+                  from_params:
+                  - jwt_token
+                  forward_payload_header: claims
+                  forward: true
+              rules:
+              - match:
+                  prefix: /health
+              - match:
+                  safe_regex:
+                    regex: "^/v1/auth/.+$"
+                    google_re2: {}
+              - match:
+                  safe_regex:
+                    regex: "^/app.App/(CreateProfile|Login)$"
+                    google_re2: {}
+                  grpc: {}
+              - match:
+                  path: "/v1/webhook"
+                  headers:
+                  - name: ":method"
+                    exact_match: "POST"
+              - match:
+                  prefix: /
+                requires:
+                  provider_and_audiences:
+                    provider_name: mono
+                    audiences:
+                    - "mono:user"
+          - name: envoy.filters.http.grpc_json_transcoder
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
+              proto_descriptor: "/protobin/app.pb"
+              services: ["app.App"]
+              print_options:
+                add_whitespace: true
+                always_print_primitive_fields: true
+                always_print_enums_as_ints: false
+                preserve_proto_field_names: false
+              convert_grpc_status: true
+          - name: envoy.filters.http.router
+
+  clusters:
+  - name: backend
+    connect_timeout: 1.25s
+    type: logical_dns
+    lb_policy: round_robin
+    dns_lookup_family: V4_ONLY
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: backend
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: app
+                port_value: 55055

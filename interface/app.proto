@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package app;
+
+import "google/api/annotations.proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+service App {
+  rpc CreateProfile(CreateProfileRequest) returns (ProfileDetails) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  };
+
+  rpc Login(Credentials) returns (ProfileDetailsAndJWT) {
+    option (google.api.http) = {
+      post: "/v1/auth/signin"
+      body: "*"
+    };
+  };
+
+  rpc GetProfile(google.protobuf.Empty) returns (ProfileDetails) {
+    option (google.api.http) = {
+      get: "/v1/profiles"
+    };
+  };
+
+  rpc DeleteProfile(google.protobuf.Empty) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/profiles"
+    };
+  };
+
+  rpc LinkAccount(LinkAccountRequest) returns (AccountDetails) {
+    option (google.api.http) = {
+      post: "/v1/accounts"
+      body: "*"
+    };
+  };
+
+  rpc UnlinkAccount(ID) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/accounts/{id}"
+    };
+  };
+
+  rpc GetLinkedAccount(ID) returns (AccountDetails) {
+    option (google.api.http) = {
+      get: "/v1/accounts/{id}"
+    };
+  };
+
+  rpc ListLinkedAccounts(ListLinkedAccountsRequest) returns (ListLinkedAccountsResponse) {
+    option (google.api.http) = {
+      get: "/v1/accounts"
+    };
+  };
+
+  rpc GetAccountTransaction(GetAccountTransactionRequest) returns (TransactionDetails) {
+    option (google.api.http) = {
+      get: "/v1/accounts/{account_id}/transactions/{transaction_id}"
+    };
+  };
+
+  rpc ListAccountTransactions(ListAccountTransactionsRequest) returns (ListAccountTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/accounts/{id}/transactions"
+    };
+  };
+
+  rpc GetReauthCode(ID) returns (GetReauthCodeResponse) {
+    option (google.api.http) = {
+      get: "/v1/accounts/{id}/reauth"
+    };
+  };
+
+  rpc WebHook(MonoEvent) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/webhook"
+      body: "*"
+    };
+  };
+}
+
+message ID {
+  string id = 1;
+}
+
+message CreateProfileRequest {
+  string name = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message ProfileDetails {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  bool has_linked_account = 6;
+}
+
+message Credentials {
+  string email = 1;
+  string password = 2;
+}
+
+message ProfileDetailsAndJWT {
+  ProfileDetails profile = 1;
+  string jwt = 2;
+}
+
+enum SortOrder {
+  option allow_alias = true;
+  SORT_ORDER_UNSPECIFIED = 0;
+  CHRONO_ASC = 0;
+  CHRONO_DSC = 1;
+}
+
+message LinkAccountRequest {
+  string code = 1;
+}
+
+message AccountDetails {
+  string bvn = 1;
+  google.protobuf.Timestamp date_added = 2;
+  string account_id = 3;
+  string account_name = 4;
+  string account_nuban = 5;
+  string account_user = 6;
+  string bank_name = 7;
+  bool reauth_required = 8;
+  string id = 9;
+}
+
+message ListLinkedAccountsRequest {
+  uint32 page = 1;
+  uint32 limit = 2;
+  SortOrder order = 3;
+}
+
+message ListLinkedAccountsResponse {
+  repeated AccountDetails accounts = 1;
+}
+
+message TransactionDetails {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  oneof amount {
+    double credit = 3;
+    double debit = 4;
+  }
+  google.protobuf.Timestamp date = 5;
+  string currency = 6;
+  string narration = 7;
+  double balance = 8;
+  string account_id = 9;
+}
+
+message GetAccountTransactionRequest {
+  string account_id = 1;
+  string transaction_id = 2;
+}
+
+message ListAccountTransactionsRequest {
+  uint32 page = 1;
+  uint32 limit = 2;
+  SortOrder order = 3;
+  string id = 4;
+  google.protobuf.BoolValue tag = 5;
+}
+
+message ListAccountTransactionsResponse {
+  repeated TransactionDetails transactions = 1;
+}
+
+message EventData {
+  message Meta {
+    string data_status = 1;
+  }
+  message Institution {
+    string name = 1;
+  }
+  message MonoAccount {
+    string id = 1 [json_name="_id"];
+    string account_number = 2 [json_name="accountNumber"];
+    string name = 3;
+    string type = 4;
+    string currency = 5;
+    string bvn = 6;
+    double balance = 7;
+    google.protobuf.Timestamp created_at = 8 [json_name="createdAt"];
+    google.protobuf.Timestamp updated_at = 9 [json_name="updatedAt"];
+    Institution institution = 10;
+  }
+  Meta meta = 1;
+  MonoAccount account = 2;
+}
+
+message MonoEvent {
+  string event = 1;
+  EventData data = 2;
+}
+
+message GetReauthCodeResponse {
+  string code = 1;
+}

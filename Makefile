@@ -16,6 +16,7 @@ export MONO_WEBHOOK_SECRET?=sec_O6BoCzjS4PQ1ut85QpBA
 
 .PHONY: app
 app:
+	@mkdir -p mongodb
 	@docker-compose up --build mongo app sidecar
 
 local:

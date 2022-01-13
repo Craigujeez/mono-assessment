@@ -50,7 +50,7 @@ const TransactionSchema: Schema = new Schema({
 }, {
   id: false,
   timestamps: {
-    createdAt: true
+    createdAt: 'created_at',
   }
 });
 
